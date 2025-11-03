@@ -1,6 +1,6 @@
-# Brain Memory MCP
+# Semantic Memory MCP
 
-Unified memory interface for Nox and the ant colony.
+Semantic memory with Redis + OpenAI embeddings. Pattern storage, confidence decay, memory consolidation for AI agents.
 
 **Abstracts**: Redis + OpenAI embeddings + vector search
 **Provides**: Hierarchical semantic memory with automatic lifecycle management
@@ -195,7 +195,7 @@ health_check()
 ## Installation
 
 ```bash
-cd ~/dev/brain-memory-mcp
+cd ~/semantic-memory-mcp
 npm install
 ```
 
@@ -208,7 +208,7 @@ Add to `.mcp.json`:
   "mcpServers": {
     "memory": {
       "command": "node",
-      "args": ["/Users/sceatstudio/dev/brain-memory-mcp/src/index.js"],
+      "args": ["~/semantic-memory-mcp/src/index.js"],
       "env": {
         "REDIS_URL": "redis://localhost:6379/0",
         "OPENAI_API_KEY": "${OPENAI_API_KEY}"

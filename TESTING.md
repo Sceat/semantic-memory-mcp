@@ -1,4 +1,4 @@
-# Brain Memory MCP - Testing Guide
+# Semantic Memory MCP - Testing Guide
 
 **Version**: 2.0.0 (2025-11-03)
 **Purpose**: Comprehensive testing checklist and migration procedures
@@ -11,7 +11,7 @@
 
 **Verify code has no syntax errors**:
 ```bash
-cd /Users/sceatstudio/dev/brain-memory-mcp
+cd ~/semantic-memory-mcp
 node --check src/index.js
 ```
 
@@ -640,7 +640,7 @@ node scripts/test-memory-system.js
 
 **Step 2: Rollback Code**
 ```bash
-cd /Users/sceatstudio/dev/brain-memory-mcp
+cd ~/semantic-memory-mcp
 git log --oneline -5
 git checkout <previous-commit-hash>
 npm install

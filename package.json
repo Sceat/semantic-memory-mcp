@@ -1,10 +1,21 @@
 {
-  "name": "brain-memory-mcp",
+  "name": "semantic-memory-mcp",
   "version": "1.0.0",
-  "description": "Unified memory MCP: patterns, embeddings, and reminders",
+  "description": "Semantic memory with Redis + OpenAI embeddings. Pattern storage, confidence decay, memory consolidation for AI agents.",
   "type": "module",
   "bin": {
-    "brain-memory-mcp": "./src/index.js"
+    "semantic-memory-mcp": "./src/index.js"
+  },
+  "author": "Sceat <fetch@sceat.xyz>",
+  "license": "MIT",
+  "keywords": ["mcp", "memory", "redis", "embeddings", "vector-search", "semantic-search", "ai-agents"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sceat/semantic-memory-mcp.git"
+  },
+  "homepage": "https://github.com/Sceat/semantic-memory-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Sceat/semantic-memory-mcp/issues"
   },
   "scripts": {
     "start": "node src/index.js"
