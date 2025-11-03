@@ -44,9 +44,7 @@ Give your AI agents a brain that learns and remembers:
 ### 1. Install
 
 ```bash
-git clone https://github.com/Sceat/semantic-memory-mcp.git
-cd semantic-memory-mcp
-npm install
+git clone https://github.com/Sceat/semantic-memory-mcp.git && cd semantic-memory-mcp && npm install
 ```
 
 ### 2. Configure
@@ -84,26 +82,23 @@ Six tools available immediately:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Query Memory → Execute Task → Store Learnings      │
 │                                                     │
-│  Intelligence compounds over time                   │
+│   Before Task: Query memory for similar patterns   │
+│                Check reminders for this task type   │
+│                                                     │
+│   During Task: Execute with learned context        │
+│                                                     │
+│   After Task:  Store what you learned              │
+│                Set reminders for next time          │
+│                                                     │
+│   Result: Intelligence compounds over time          │
+│                                                     │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Example workflow:**
+**Pattern storage** automatically handles embeddings, categorization, and lifecycle management.
 
-```javascript
-// Before starting a task
-const patterns = await search_patterns("kubernetes pod crashes", 5);
-const reminders = await check_reminders("k8s-deploy");
-
-// After completing a task
-await store_pattern(
-  "solution",
-  "OOM crash fixed by increasing memory limit from 512Mi to 1Gi",
-  { confidence: 1.0, tags: ["kubernetes", "memory"] }
-);
-```
+**Semantic search** finds similar patterns by meaning, not keywords.
 
 ---
 

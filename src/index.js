@@ -228,7 +228,7 @@ const tools = [
  * @param {string} text - Text to embed
  * @returns {Promise<number[]>} Embedding vector (1536 dims)
  */
-async function generateEmbedding(text) {
+async function generate_embedding(text) {
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: text,
@@ -241,7 +241,7 @@ async function generateEmbedding(text) {
  * @param {number[]} vector - Float array
  * @returns {Buffer} Binary buffer
  */
-function encodeVector(vector) {
+function encode_vector(vector) {
   const buffer = Buffer.allocUnsafe(vector.length * 4);
   vector.forEach((val, i) => buffer.writeFloatLE(val, i * 4));
   return buffer;
@@ -252,7 +252,7 @@ function encodeVector(vector) {
  * @param {Buffer} buffer - Binary buffer
  * @returns {number[]} Float array
  */
-function decodeVector(buffer) {
+function decode_vector(buffer) {
   const vector = [];
   for (let i = 0; i < buffer.length; i += 4) {
     vector.push(buffer.readFloatLE(i));
@@ -263,7 +263,7 @@ function decodeVector(buffer) {
 /**
  * Create vector index if it doesn't exist
  */
-async function ensureVectorIndex() {
+async function ensure_vector_index() {
   try {
     // Check if index exists
     await redis.ft.info("pattern_index");
@@ -272,11 +272,11 @@ async function ensureVectorIndex() {
     console.error("Creating pattern_index...");
 
     // Need to use raw client for binary operations
-    const binaryRedis = createClient({ url: REDIS_URL });
-    await binaryRedis.connect();
+    const binary_redis = createClient({ url: REDIS_URL });
+    await binary_redis.connect();
 
     try {
-      await binaryRedis.sendCommand([
+      await binary_redis.sendCommand([
         "FT.CREATE",
         "pattern_index",
         "ON", "HASH",
@@ -293,7 +293,7 @@ async function ensureVectorIndex() {
       ]);
       console.error("pattern_index created successfully");
     } finally {
-      await binaryRedis.quit();
+      await binary_redis.quit();
     }
   }
 }
@@ -306,18 +306,18 @@ async function ensureVectorIndex() {
  * Calculate confidence decay based on time since last use
  * Formula: confidence *= 0.95 ** months_since_last_use
  * @param {number} confidence - Current confidence (0.0-1.0)
- * @param {string} lastValidated - ISO timestamp of last validation
+ * @param {string} last_validated - ISO timestamp of last validation
  * @returns {number} Decayed confidence
  */
-function calculateConfidenceDecay(confidence, lastValidated) {
-  if (!lastValidated) return confidence;
+function calculate_confidence_decay(confidence, last_validated) {
+  if (!last_validated) return confidence;
 
   const now = new Date();
-  const lastValidatedDate = new Date(lastValidated);
-  const monthsSinceLastUse = (now - lastValidatedDate) / (1000 * 60 * 60 * 24 * 30);
+  const last_validated_date = new Date(last_validated);
+  const months_since_last_use = (now - last_validated_date) / (1000 * 60 * 60 * 24 * 30);
 
-  const decayedConfidence = confidence * Math.pow(0.95, monthsSinceLastUse);
-  return Math.max(0, Math.min(1, decayedConfidence)); // Clamp to [0, 1]
+  const decayed_confidence = confidence * Math.pow(0.95, months_since_last_use);
+  return Math.max(0, Math.min(1, decayed_confidence)); // Clamp to [0, 1]
 }
 
 // ============================================================================
@@ -327,19 +327,19 @@ function calculateConfidenceDecay(confidence, lastValidated) {
 /**
  * Store pattern with embedding
  * @param {string} category - Pattern category
- * @param {string} memoryType - Memory type (semantic/episodic/procedural)
+ * @param {string} memory_type - Memory type (semantic/episodic/procedural)
  * @param {string} content - Pattern content
  * @param {object} metadata - Pattern metadata
  */
-async function storePattern(category, memoryType = "semantic", content, metadata) {
+async function store_pattern(category, memory_type = "semantic", content, metadata) {
   // Generate embedding
-  const embedding = await generateEmbedding(content);
+  const embedding = await generate_embedding(content);
 
   // Generate unique pattern ID with memory type prefix
-  const patternId = `pattern:${memoryType}:${category}:${Math.abs(hashCode(content)) % 100000000}`;
+  const pattern_id = `pattern:${memory_type}:${category}:${Math.abs(hash_code(content)) % 100000000}`;
 
   // Add enhanced metadata with timestamps
-  const enrichedMetadata = {
+  const enriched_metadata = {
     ...metadata,
     created_at: new Date().toISOString(),
     last_validated: new Date().toISOString(),
@@ -348,33 +348,33 @@ async function storePattern(category, memoryType = "semantic", content, metadata
   };
 
   // Get TTL based on memory type
-  const memoryConfig = Object.values(MEMORY_TYPES).find(m => m.name === memoryType);
-  const ttl = memoryConfig?.ttl;
+  const memory_config = Object.values(MEMORY_TYPES).find(m => m.name === memory_type);
+  const ttl = memory_config?.ttl;
 
   // Store in Redis hash (using binary client for vector)
-  const binaryRedis = createClient({ url: REDIS_URL });
-  await binaryRedis.connect();
+  const binary_redis = createClient({ url: REDIS_URL });
+  await binary_redis.connect();
 
   try {
-    await binaryRedis.hSet(patternId, {
+    await binary_redis.hSet(pattern_id, {
       category,
-      memory_type: memoryType,
+      memory_type: memory_type,
       content,
-      metadata: JSON.stringify(enrichedMetadata),
-      embedding: encodeVector(embedding),
+      metadata: JSON.stringify(enriched_metadata),
+      embedding: encode_vector(embedding),
     });
 
     // Set TTL if applicable (episodic memories)
     if (ttl) {
-      await binaryRedis.expire(patternId, ttl);
+      await binary_redis.expire(pattern_id, ttl);
     }
   } finally {
-    await binaryRedis.quit();
+    await binary_redis.quit();
   }
 
   return {
-    pattern_id: patternId,
-    memory_type: memoryType,
+    pattern_id: pattern_id,
+    memory_type: memory_type,
     ttl_seconds: ttl,
     status: "stored",
   };
@@ -385,31 +385,31 @@ async function storePattern(category, memoryType = "semantic", content, metadata
  * @param {string} query - Search query
  * @param {number} k - Number of results
  * @param {string} category - Optional category filter
- * @param {string} memoryType - Optional memory type filter
+ * @param {string} memory_type - Optional memory type filter
  */
-async function searchPatterns(query, k = 5, category = null, memoryType = null) {
+async function search_patterns(query, k = 5, category = null, memory_type = null) {
   // Generate query embedding
-  const queryEmbedding = await generateEmbedding(query);
-  const queryVector = encodeVector(queryEmbedding);
+  const query_embedding = await generate_embedding(query);
+  const query_vector = encode_vector(query_embedding);
 
   // Build search query with filters
   const filters = [];
   if (category) filters.push(`@category:{${category}}`);
-  if (memoryType) filters.push(`@memory_type:{${memoryType}}`);
+  if (memory_type) filters.push(`@memory_type:{${memory_type}}`);
 
-  const baseQuery = filters.length > 0 ? `(${filters.join(" ")})` : "*";
-  const searchQuery = `${baseQuery}=>[KNN ${k} @embedding $vec AS score]`;
+  const base_query = filters.length > 0 ? `(${filters.join(" ")})` : "*";
+  const search_query = `${base_query}=>[KNN ${k} @embedding $vec AS score]`;
 
   // Execute vector search (using binary client)
-  const binaryRedis = createClient({ url: REDIS_URL });
-  await binaryRedis.connect();
+  const binary_redis = createClient({ url: REDIS_URL });
+  await binary_redis.connect();
 
   try {
-    const results = await binaryRedis.sendCommand([
+    const results = await binary_redis.sendCommand([
       "FT.SEARCH",
       "pattern_index",
-      searchQuery,
-      "PARAMS", "2", "vec", queryVector,
+      search_query,
+      "PARAMS", "2", "vec", query_vector,
       "RETURN", "4", "category", "memory_type", "content", "metadata",
       "SORTBY", "score",
       "DIALECT", "2",
@@ -417,23 +417,23 @@ async function searchPatterns(query, k = 5, category = null, memoryType = null) 
 
     // Parse results
     const patterns = [];
-    const numResults = results[0];
+    const num_results = results[0];
 
     for (let i = 1; i < results.length; i += 2) {
-      const docId = results[i];
+      const doc_id = results[i];
       const fields = results[i + 1];
 
-      const pattern = { pattern_id: docId };
+      const pattern = { pattern_id: doc_id };
       for (let j = 0; j < fields.length; j += 2) {
-        const fieldName = fields[j];
-        const fieldValue = fields[j + 1];
+        const field_name = fields[j];
+        const field_value = fields[j + 1];
 
-        if (fieldName === "metadata") {
-          const metadata = JSON.parse(fieldValue);
+        if (field_name === "metadata") {
+          const metadata = JSON.parse(field_value);
 
           // Apply confidence decay if applicable
           if (metadata.confidence && metadata.last_validated) {
-            metadata.confidence_current = calculateConfidenceDecay(
+            metadata.confidence_current = calculate_confidence_decay(
               metadata.confidence,
               metadata.last_validated
             );
@@ -442,7 +442,7 @@ async function searchPatterns(query, k = 5, category = null, memoryType = null) 
 
           pattern.metadata = metadata;
         } else {
-          pattern[fieldName] = fieldValue;
+          pattern[field_name] = field_value;
         }
       }
 
@@ -452,51 +452,51 @@ async function searchPatterns(query, k = 5, category = null, memoryType = null) 
     return {
       results: patterns,
       query,
-      filters: { category, memory_type: memoryType },
+      filters: { category, memory_type: memory_type },
       count: patterns.length,
     };
   } finally {
-    await binaryRedis.quit();
+    await binary_redis.quit();
   }
 }
 
 /**
  * Set reminder for task type
  */
-async function setReminder(taskType, reminder, priority = "info") {
-  const reminderKey = `reminder:${taskType}`;
-  const reminderId = `r_${Date.now()}`;
+async function set_reminder(task_type, reminder, priority = "info") {
+  const reminder_key = `reminder:${task_type}`;
+  const reminder_id = `r_${Date.now()}`;
 
-  const reminderData = {
-    reminder_id: reminderId,
+  const reminder_data = {
+    reminder_id: reminder_id,
     content: reminder,
     priority,
     created_at: new Date().toISOString(),
   };
 
-  await redis.hSet(reminderKey, reminderId, JSON.stringify(reminderData));
+  await redis.hSet(reminder_key, reminder_id, JSON.stringify(reminder_data));
 
   return {
     status: "ok",
-    reminder_id: reminderId,
+    reminder_id: reminder_id,
   };
 }
 
 /**
  * Get all reminders for task type
  */
-async function checkReminders(taskType) {
-  const reminderKey = `reminder:${taskType}`;
-  const data = await redis.hGetAll(reminderKey);
+async function check_reminders(task_type) {
+  const reminder_key = `reminder:${task_type}`;
+  const data = await redis.hGetAll(reminder_key);
 
   const reminders = Object.values(data).map((val) => JSON.parse(val));
 
   // Sort by priority (critical > important > info)
-  const priorityOrder = { critical: 0, important: 1, info: 2 };
-  reminders.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  const priority_order = { critical: 0, important: 1, info: 2 };
+  reminders.sort((a, b) => priority_order[a.priority] - priority_order[b.priority]);
 
   return {
-    task_type: taskType,
+    task_type: task_type,
     reminders,
     count: reminders.length,
   };
@@ -505,7 +505,7 @@ async function checkReminders(taskType) {
 /**
  * Health check
  */
-async function healthCheck() {
+async function health_check() {
   const checks = {
     redis: "disconnected",
     openai: "unknown",
@@ -522,7 +522,7 @@ async function healthCheck() {
 
   // Check OpenAI (attempt to get embeddings)
   try {
-    await generateEmbedding("test");
+    await generate_embedding("test");
     checks.openai = "connected";
   } catch (error) {
     checks.openai = `error: ${error.message}`;
@@ -546,18 +546,18 @@ async function healthCheck() {
 
 /**
  * Consolidate memories - identify and promote patterns
- * @param {boolean} dryRun - Preview mode without actual promotion
- * @param {string} promotionType - Type of promotion
- * @param {number} minEvidence - Minimum evidence count
+ * @param {boolean} dry_run - Preview mode without actual promotion
+ * @param {string} promotion_type - Type of promotion
+ * @param {number} min_evidence - Minimum evidence count
  */
-async function consolidateMemories(
-  dryRun = true,
-  promotionType = "episodic_to_semantic",
-  minEvidence = 5
+async function consolidate_memories(
+  dry_run = true,
+  promotion_type = "episodic_to_semantic",
+  min_evidence = 5
 ) {
   const results = {
-    dry_run: dryRun,
-    promotion_type: promotionType,
+    dry_run: dry_run,
+    promotion_type: promotion_type,
     episodic_to_semantic: {
       candidates: [],
       promoted: 0,
@@ -569,27 +569,27 @@ async function consolidateMemories(
   };
 
   // Phase 1: Episodic → Semantic promotion
-  if (promotionType === "episodic_to_semantic" || promotionType === "both") {
+  if (promotion_type === "episodic_to_semantic" || promotion_type === "both") {
     // Query all episodic patterns
-    const episodicPatterns = await searchPatterns("*", 1000, null, "episodic");
+    const episodic_patterns = await search_patterns("*", 1000, null, "episodic");
 
-    for (const pattern of episodicPatterns.results) {
-      const evidenceCount = pattern.metadata?.evidence_count || 0;
+    for (const pattern of episodic_patterns.results) {
+      const evidence_count = pattern.metadata?.evidence_count || 0;
 
       // Check if meets promotion threshold
-      if (evidenceCount >= minEvidence) {
+      if (evidence_count >= min_evidence) {
         results.episodic_to_semantic.candidates.push({
           pattern_id: pattern.pattern_id,
           category: pattern.category,
           content: pattern.content.substring(0, 100) + "...", // Preview
-          evidence_count: evidenceCount,
+          evidence_count: evidence_count,
           confidence: pattern.metadata.confidence,
         });
 
         // Promote if not dry run
-        if (!dryRun) {
+        if (!dry_run) {
           // Create semantic version
-          await storePattern(
+          await store_pattern(
             pattern.category,
             "semantic", // Promote to semantic
             pattern.content,
@@ -608,31 +608,31 @@ async function consolidateMemories(
   }
 
   // Phase 2: Semantic → Canonical graduation
-  if (promotionType === "semantic_to_canonical" || promotionType === "both") {
+  if (promotion_type === "semantic_to_canonical" || promotion_type === "both") {
     // Query all semantic patterns
-    const semanticPatterns = await searchPatterns("*", 1000, null, "semantic");
+    const semantic_patterns = await search_patterns("*", 1000, null, "semantic");
 
-    for (const pattern of semanticPatterns.results) {
-      const evidenceCount = pattern.metadata?.evidence_count || 0;
+    for (const pattern of semantic_patterns.results) {
+      const evidence_count = pattern.metadata?.evidence_count || 0;
       const confidence = pattern.metadata?.confidence || 0;
 
       // Check if meets canonical threshold
       if (
-        evidenceCount >= PROMOTION_THRESHOLDS.SEMANTIC_TO_LONGTERM &&
+        evidence_count >= PROMOTION_THRESHOLDS.SEMANTIC_TO_LONGTERM &&
         confidence >= PROMOTION_THRESHOLDS.MIN_CONFIDENCE
       ) {
         results.semantic_to_canonical.candidates.push({
           pattern_id: pattern.pattern_id,
           category: pattern.category,
           content: pattern.content.substring(0, 100) + "...",
-          evidence_count: evidenceCount,
+          evidence_count: evidence_count,
           confidence: confidence,
           ready_for_export: true,
         });
 
         // Note: Actual graduation to knowledge/ requires manual review
         // This just identifies candidates
-        if (!dryRun) {
+        if (!dry_run) {
           results.semantic_to_canonical.graduated++;
         }
       }
@@ -654,7 +654,7 @@ async function consolidateMemories(
 /**
  * Simple string hash function
  */
-function hashCode(str) {
+function hash_code(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -692,7 +692,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case "store_pattern":
-        result = await storePattern(
+        result = await store_pattern(
           args.category,
           args.memory_type || "semantic",
           args.content,
@@ -701,7 +701,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case "search_patterns":
-        result = await searchPatterns(
+        result = await search_patterns(
           args.query,
           args.k,
           args.category,
@@ -710,19 +710,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case "set_reminder":
-        result = await setReminder(args.task_type, args.reminder, args.priority);
+        result = await set_reminder(args.task_type, args.reminder, args.priority);
         break;
 
       case "check_reminders":
-        result = await checkReminders(args.task_type);
+        result = await check_reminders(args.task_type);
         break;
 
       case "health_check":
-        result = await healthCheck();
+        result = await health_check();
         break;
 
       case "consolidate_memories":
-        result = await consolidateMemories(
+        result = await consolidate_memories(
           args.dry_run !== false, // Default to true
           args.promotion_type || "episodic_to_semantic",
           args.min_evidence || 5
@@ -766,7 +766,7 @@ async function main() {
   openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
   // Ensure vector index exists
-  await ensureVectorIndex();
+  await ensure_vector_index();
 
   // Start MCP server
   const transport = new StdioServerTransport();
