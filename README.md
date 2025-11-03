@@ -41,32 +41,28 @@ Give your AI agents a brain that learns and remembers:
 
 ## Quick Start
 
-### 1. Install
+### Install
 
 ```bash
-git clone https://github.com/Sceat/semantic-memory-mcp.git && cd semantic-memory-mcp && npm install
+claude mcp add memory -- npx -y github:Sceat/semantic-memory-mcp
 ```
 
-### 2. Configure
-
-Add to your `.mcp.json`:
+Then configure environment variables in `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
     "memory": {
-      "command": "node",
-      "args": ["/absolute/path/to/semantic-memory-mcp/src/index.js"],
       "env": {
         "REDIS_URL": "redis://localhost:6379/0",
-        "OPENAI_API_KEY": "your-api-key-here"
+        "OPENAI_API_KEY": "your-openai-key-here"
       }
     }
   }
 }
 ```
 
-### 3. Use
+### Use
 
 Six tools available immediately:
 - `store_pattern` - Save what you learned
@@ -96,9 +92,34 @@ Six tools available immediately:
 └─────────────────────────────────────────────────────┘
 ```
 
-**Pattern storage** automatically handles embeddings, categorization, and lifecycle management.
+---
 
-**Semantic search** finds similar patterns by meaning, not keywords.
+## Local Development
+
+If you want to develop or modify the server:
+
+```bash
+git clone https://github.com/Sceat/semantic-memory-mcp.git
+cd semantic-memory-mcp
+npm install
+```
+
+Then add to your Claude Code config:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "node",
+      "args": ["/path/to/semantic-memory-mcp/src/index.js"],
+      "env": {
+        "REDIS_URL": "redis://localhost:6379/0",
+        "OPENAI_API_KEY": "your-openai-key-here"
+      }
+    }
+  }
+}
+```
 
 ---
 
@@ -107,6 +128,7 @@ Six tools available immediately:
 - Node.js ≥ 18
 - Redis 7.2+ with RediSearch module
 - OpenAI API key
+- Claude Code
 
 ---
 
