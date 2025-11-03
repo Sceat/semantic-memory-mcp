@@ -1,14 +1,13 @@
-# Brain Memory MCP - Architecture Documentation
+# Semantic Memory MCP - Architecture Documentation
 
 **Version**: 2.0.0 (2025-11-03)
-**Author**: Nox (Ant Colony)
 **Purpose**: Technical architecture reference for memory system internals
 
 ---
 
 ## System Overview
 
-Brain Memory MCP implements a hierarchical memory system with three memory types, automatic lifecycle management, and semantic search via Redis + OpenAI embeddings.
+Semantic Memory MCP implements a hierarchical memory system with three memory types, automatic lifecycle management, and semantic search via Redis + OpenAI embeddings.
 
 ### Key Features
 - **Memory type separation**: Semantic, episodic, procedural
@@ -32,7 +31,7 @@ Brain Memory MCP implements a hierarchical memory system with three memory types
 **Storage Strategy**:
 - Direct storage without expiration
 - Survives consolidation cycles
-- Can graduate to `knowledge/` markdown if canonical
+- Can be exported to documentation if canonical
 
 **Example**:
 ```
@@ -263,13 +262,13 @@ const PROMOTION_THRESHOLDS = {
 1. Query all semantic patterns
 2. Filter by evidence + confidence thresholds
 3. Identify candidates ready for export
-4. **Manual step**: Export to `knowledge/` markdown
+4. **Manual step**: Export to external documentation
 5. Pattern remains in Redis (not deleted)
 
 **Result**:
 - Candidate list for manual review
 - Patterns stay in Redis as backup/search
-- `knowledge/` receives markdown documentation
+- High-confidence patterns can be documented externally
 
 ### Consolidation Tool Usage
 
